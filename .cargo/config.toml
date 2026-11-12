@@ -3,3 +3,8 @@ rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
+
+# Keep CMake's optimized Release flags; its implicit MSVC generator loses them.
+# Ninja must be available on PATH for source builds.
+[env]
+CMAKE_GENERATOR = "Ninja"
