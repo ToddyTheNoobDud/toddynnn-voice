@@ -162,9 +162,11 @@ TypeScript declarations describe the result fields.
 
 ## Build from source
 
-Install Rust 1.88 or newer, CMake, Ninja, and a C compiler for your target. Android
-builds also need the NDK and `ANDROID_NDK_HOME`. Ninja must be on PATH; the Cargo
-configuration selects it to preserve CMake's optimized Release flags on MSVC.
+Install Rust 1.88 or newer, CMake, Ninja, and a C compiler for your target. For
+Android cross builds, point `ANDROID_NDK_LATEST_HOME` and `ANDROID_NDK_HOME` at
+the same NDK installation. Run the build with `--target <android-triple>`.
+Ninja must be on PATH. The Cargo configuration selects it to preserve CMake's
+optimized Release flags on MSVC.
 
 ```sh
 npm ci

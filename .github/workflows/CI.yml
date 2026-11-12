@@ -41,10 +41,9 @@ jobs:
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, flags: '', test: true }
           - { os: ubuntu-latest, target: aarch64-unknown-linux-musl, flags: '-x' }
           - { os: ubuntu-latest, target: armv7-unknown-linux-gnueabihf, flags: '--use-napi-cross' }
-          - { os: ubuntu-latest, target: aarch64-linux-android, flags: '--use-napi-cross' }
-          - { os: ubuntu-latest, target: armv7-linux-androideabi, flags: '--use-napi-cross' }
-          - { os: ubuntu-latest, target: riscv64gc-unknown-linux-gnu, flags: '--use-napi-cross' }
-          - { os: ubuntu-latest, target: x86_64-unknown-freebsd, flags: '-x' }
+          - { os: ubuntu-latest, target: aarch64-linux-android, flags: '' }
+          - { os: ubuntu-latest, target: armv7-linux-androideabi, flags: '' }
+          - { os: ubuntu-24.04, target: riscv64gc-unknown-linux-gnu, flags: '' }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -63,7 +62,18 @@ jobs:
       - name: Configure Android NDK
         if: contains(matrix.target, 'android')
         shell: bash
-        run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.2.11394342" >> "$GITHUB_ENV"
+        run: |
+          ndk="$ANDROID_SDK_ROOT/ndk/26.2.11394342"
+          {
+            echo "ANDROID_NDK_HOME=$ndk"
+            echo "ANDROID_NDK_LATEST_HOME=$ndk"
+            echo "ANDROID_PLATFORM=android-24"
+          } >> "$GITHUB_ENV"
+      - name: Install RISC-V cross compiler
+        if: matrix.target == 'riscv64gc-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
       - uses: mlugg/setup-zig@v2
         if: matrix.flags == '-x'
         with:
@@ -80,6 +90,32 @@ jobs:
         with:
           name: bindings-${{ matrix.target }}
           path: '*.node'
+          if-no-files-found: error
+  build-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and test on FreeBSD
+        uses: cross-platform-actions/action@v1.7.0
+        with:
+          operating_system: freebsd
+          version: '15.0'
+          memory: 8G
+          cpu_count: 3
+          shell: bash
+          run: |
+            set -e
+            sudo pkg install -y curl node libnghttp2 npm cmake ninja
+            curl --fail --silent --show-error https://sh.rustup.rs --output /tmp/rustup-init.sh
+            sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable
+            source "$HOME/.cargo/env"
+            npm ci
+            npm run build -- --target x86_64-unknown-freebsd
+            npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bindings-x86_64-unknown-freebsd
+          path: '*.freebsd-x64.node'
           if-no-files-found: error
   test-node:
     needs: build
@@ -100,7 +136,7 @@ jobs:
           path: .
       - run: npm test
   package:
-    needs: [check, build, test-node]
+    needs: [check, build, build-freebsd, test-node]
     runs-on: ubuntu-latest
     permissions:
       contents: read
